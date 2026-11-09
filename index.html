@@ -3,116 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kashti floor Attendance</title>
+  <title>Kashti Office Attendance</title>
   <style>
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
-    .container { background: #ffffff; width: 100%; max-width: 420px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
-    h2 { color: #1a73e8; margin-bottom: 8px; }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+    .card { background: #ffffff; width: 100%; max-width: 400px; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+    h2 { color: #1a73e8; margin-bottom: 5px; }
     p { color: #666; font-size: 14px; margin-bottom: 20px; }
-    input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; text-align: center; margin-bottom: 15px; outline: none; }
-    input:focus { border-color: #1a73e8; }
-    button { width: 100%; background: #1a73e8; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-    button:hover { background: #1557b0; }
-    .details-box { display: none; text-align: left; background: #e8f0fe; padding: 15px; border-radius: 8px; margin-top: 20px; }
-    .details-box p { color: #333; margin: 6px 0; font-size: 15px; }
-    .status-box { display: none; margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; text-align: center; }
+    input { width: 100%; padding: 14px; font-size: 18px; border: 1px solid #ccc; border-radius: 8px; text-align: center; margin-bottom: 15px; outline: none; }
+    button { width: 100%; background: #1a73e8; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; }
+    .status-box { display: none; margin-top: 15px; padding: 15px; border-radius: 8px; text-align: left; font-size: 14px; }
     .success { background: #e6f4ea; color: #137333; border: 1px solid #ceedd5; }
     .error { background: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
-    .loading { display: none; color: #1a73e8; font-weight: bold; margin-top: 10px; }
+    .warning { background: #fff4e5; color: #663c00; border: 1px solid #ffe0b2; font-weight: bold; text-align: center; }
+    .location-info { font-size: 12px; color: #666; margin-top: 8px; }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <div class="card">
     <h2>Kashti Attendance</h2>
-    <p>Scan QR & Mark Daily Attendance</p>
+    <p>Mark Attendance from Office Floor</p>
 
-    <input type="tel" id="mobileInput" placeholder="Enter Mobile Number" maxlength="10">
-    <button id="fetchBtn" onclick="fetchDetails()">Fetch Details</button>
-    <div id="loader" class="loading">Processing... Please wait</div>
+    <input type="tel" id="mobile" placeholder="Enter 10-Digit Mobile" maxlength="10">
+    <button id="btn" onclick="submitAttendance()">⚡ Mark Attendance</button>
+    <div id="locStatus" class="location-info">📍 Checking GPS location...</div>
 
-    <div id="detailsBox" class="details-box">
-      <p><b>Name:</b> <span id="empName"></span></p>
-      <p><b>Emp ID:</b> <span id="empId"></span></p>
-      <p><b>Designation:</b> <span id="empDesg"></span></p>
-      <p><b>Lender:</b> <span id="empLender"></span></p>
-      <button onclick="confirmAttendance()" style="background:#34a853; margin-top:15px;">Mark Attendance</button>
-    </div>
-
-    <div id="statusBox" class="status-box"></div>
+    <div id="resultBox" class="status-box"></div>
   </div>
 
   <script>
-    // Replace with your Web App URL after deployment
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzuHQ6lXFejJohyBDISOBzwEHnns_emrLvn6MQqfA_0XhPckMXZBLenidFwbfHAvwDw/exec";
+    
+    let currentLat = null;
+    let currentLng = null;
 
-    function fetchDetails() {
-      const mobile = document.getElementById("mobileInput").value.trim();
+    // Get phone location on load
+    window.onload = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            currentLat = pos.coords.latitude;
+            currentLng = pos.coords.longitude;
+            document.getElementById("locStatus").innerText = "📍 Location Ready";
+          },
+          (err) => {
+            document.getElementById("locStatus").innerText = "⚠️ Please enable Phone Location (GPS)!";
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      }
+    };
+
+    function submitAttendance() {
+      const mobile = document.getElementById("mobile").value.trim();
+      const btn = document.getElementById("btn");
+
       if (mobile.length < 10) {
-        showStatus("Please enter a valid 10-digit mobile number.", false);
+        showMsg("Please enter a valid 10-digit mobile number.", "error");
         return;
       }
 
-      showLoader(true);
-      hideStatus();
+      if (!currentLat || !currentLng) {
+        showMsg("GPS Location required! Please turn on phone Location/GPS and refresh.", "warning");
+        return;
+      }
 
-      fetch(`${SCRIPT_URL}?action=getDetails&mobile=${mobile}`)
+      btn.disabled = true;
+      btn.innerText = "Verifying Location...";
+
+      fetch(`${SCRIPT_URL}?mobile=${mobile}&lat=${currentLat}&lng=${currentLng}`)
         .then(res => res.json())
         .then(data => {
-          showLoader(false);
+          btn.disabled = false;
+          btn.innerText = "⚡ Mark Attendance";
+
           if (data.success) {
-            document.getElementById("empName").innerText = data.empName;
-            document.getElementById("empId").innerText = data.empId;
-            document.getElementById("empDesg").innerText = data.designation;
-            document.getElementById("empLender").innerText = data.lender;
-            document.getElementById("detailsBox").style.display = "block";
+            const html = `
+              <b>✅ Attendance Marked!</b><br>
+              <b>Name:</b> ${data.empName}<br>
+              <b>Emp ID:</b> ${data.empId}<br>
+              <b>Status:</b> ${data.status}<br>
+              <b>Time:</b> ${data.time}
+            `;
+            showMsg(html, "success");
+          } else if (data.isLocationError) {
+            // SHOW THE OFFICE FLOOR WARNING MESSAGE
+            showMsg(`📍 <b>${data.message}</b>`, "warning");
           } else {
-            showStatus(data.message, false);
+            showMsg(`❌ ${data.message}`, "error");
           }
         })
         .catch(err => {
-          showLoader(false);
-          showStatus("Error connecting to server. Please try again.", false);
+          btn.disabled = false;
+          btn.innerText = "⚡ Mark Attendance";
+          showMsg("❌ Connection error. Try again.", "error");
         });
     }
 
-    function confirmAttendance() {
-      const mobile = document.getElementById("mobileInput").value.trim();
-      showLoader(true);
-
-      fetch(`${SCRIPT_URL}?action=markAttendance&mobile=${mobile}`)
-        .then(res => res.json())
-        .then(data => {
-          showLoader(false);
-          if (data.success) {
-            document.getElementById("detailsBox").style.display = "none";
-            const msg = `Attendance Marked Successfully!<br>Status: <b>${data.status}</b><br>Time: ${data.time}`;
-            showStatus(msg, true);
-          } else {
-            showStatus(data.message, false);
-          }
-        })
-        .catch(err => {
-          showLoader(false);
-          showStatus("Error marking attendance.", false);
-        });
-    }
-
-    function showLoader(show) {
-      document.getElementById("loader").style.display = show ? "block" : "none";
-      document.getElementById("fetchBtn").disabled = show;
-    }
-
-    function showStatus(msg, isSuccess) {
-      const box = document.getElementById("statusBox");
+    function showMsg(msg, type) {
+      const box = document.getElementById("resultBox");
       box.innerHTML = msg;
-      box.className = `status-box ${isSuccess ? 'success' : 'error'}`;
+      box.className = `status-box ${type}`;
       box.style.display = "block";
-    }
-
-    function hideStatus() {
-      document.getElementById("statusBox").style.display = "none";
     }
   </script>
 
